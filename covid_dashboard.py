@@ -6,7 +6,7 @@ from pathlib import Path
 import os
 from tqdm.notebook import tqdm
 from scipy.integrate import solve_ivp
-from scipy.optimize import minimize
+from scipy.optimize import minimize, basinhopping
 from sklearn.metrics import mean_squared_log_error, mean_squared_error
 import datetime
  
@@ -22,6 +22,7 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
 import time
+import random
  
 #Remember to be connected to VPN
 state_data = pd.read_csv('https://api.covid19india.org/csv/latest/state_wise_daily.csv')
@@ -298,7 +299,10 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
  
     fig.update_yaxes(automargin=True)
     fig.update_xaxes(automargin=True)
-    styling = {'linewidth':2.5, 'actual_opacity' : 0.9, 'model_opacity' : 0.9 }
+    styling = {'linewidth':2.5, 'actual_opacity' : 0.9, 'model_opacity' : 0.9,
+               'linewidth_actual':3.5, 'color_actual': 'green', 'color_model': 'red',
+               'color_repro':'cyan', 'hovertemplate': '%{y:.0f}| %{x}',
+               'hovertemplate_repro': '%{y:.3f}| %{x}'}
     
     fig.update_yaxes(automargin=True)
     fig.update_xaxes(automargin=True)
@@ -306,26 +310,26 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
     trace_1a = go.Scatter(y = train_data['ConfirmedCases'],
                           x = train_data.index,
                           mode = 'lines',
-                          line = dict(color = 'green', width = styling['linewidth']),
+                          line = dict(color = styling['color_actual'], width = styling['linewidth_actual']),
                           name = 'Actual confirmed cases',
                           opacity = styling['actual_opacity'],
-                          hovertemplate = '%{y:.0f}'
+                          hovertemplate = styling['hovertemplate']
                         )
     trace_1b = go.Scatter(y = y_pred['ConfirmedCases'],
                           x = train_data.index,
                           mode = 'lines',
-                          line = dict(color = 'red', width = styling['linewidth']),
+                          line = dict(color = styling['color_model'], width = styling['linewidth']),
                           name = 'Modeled confirmed cases',
                           opacity = styling['model_opacity'],
-                          hovertemplate = '%{y:.0f}'
+                          hovertemplate = styling['hovertemplate']
                         )
     trace_1s = go.Scatter(y = y_pred['R'],
                           x = train_data.index,
                           mode = 'lines',
-                          line = dict(color = 'blue', width = styling['linewidth']),
+                          line = dict(color = styling['color_repro'], width = styling['linewidth']),
                           name = 'Reproduction number',
                           opacity = styling['model_opacity'],
-                          hovertemplate = '%{y:.3f}'
+                          hovertemplate = styling['hovertemplate_repro']
                          
                         )
     fig.add_trace(trace_1a, row = 1, col = 1)
@@ -336,18 +340,18 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
     trace_2a = go.Scatter(y = train_data['CurrentInfections'],
                           x = train_data.index,
                           mode = 'lines',
-                          line = dict(color = 'green', width = styling['linewidth']),
+                          line = dict(color = styling['color_actual'], width = styling['linewidth_actual']),
                           name = 'Actual Current Infections',
                           opacity = styling['actual_opacity'],
-                          hovertemplate = '%{y:.0f}'
+                          hovertemplate = styling['hovertemplate']
                         )
     trace_2b = go.Scatter(y = y_pred['CurrentInfections'],
                           x = train_data.index,
                           mode = 'lines',
-                          line = dict(color = 'red', width = styling['linewidth']),
+                          line = dict(color = styling['color_model'], width = styling['linewidth']),
                           name = 'Modeled Current Infections',
                           opacity = styling['model_opacity'],
-                          hovertemplate = '%{y:.0f}'
+                          hovertemplate = styling['hovertemplate']
                         )
     fig.add_trace(trace_2a, row = 3, col = 1)
     fig.add_trace(trace_2b, row = 3, col = 1)
@@ -356,18 +360,18 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
     trace_3a = go.Scatter(y = train_data['Removed'],
                           x = train_data.index,
                           mode = 'lines',
-                          line = dict(color = 'green', width = styling['linewidth']),
+                          line = dict(color = styling['color_actual'], width = styling['linewidth_actual']),
                           name = 'Actual Removed',
                           opacity = styling['actual_opacity'],
-                          hovertemplate = '%{y:.0f}'
+                          hovertemplate = styling['hovertemplate']
                         )
     trace_3b = go.Scatter(y = y_pred['Removed'],
                           x = train_data.index,
                           mode = 'lines',
-                          line = dict(color = 'red', width = styling['linewidth']),
+                          line = dict(color = styling['color_model'], width = styling['linewidth']),
                           name = 'Modeled Removed',
                           opacity = styling['model_opacity'],
-                          hovertemplate = '%{y:.0f}'
+                          hovertemplate = styling['hovertemplate']
                         )
     fig.add_trace(trace_3a, row = 5, col = 1)
     fig.add_trace(trace_3b, row = 5, col = 1)
@@ -375,26 +379,26 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
     trace_4a = go.Scatter(y = train_data['ConfirmedCases'],
                           x = y_pred.index,
                           mode = 'lines',
-                          line = dict(color = 'green', width = styling['linewidth']),
+                          line = dict(color = styling['color_actual'], width = styling['linewidth_actual']),
                           name = 'Actual confirmed',
                           opacity = styling['actual_opacity'],
-                          hovertemplate = '%{y:.0f}'
+                          hovertemplate = styling['hovertemplate']
                         )
     trace_4b = go.Scatter(y = y_pred['ConfirmedCases'],
                           x = y_pred.index,
                           mode = 'lines',
-                          line = dict(color = 'red', width = styling['linewidth']),
+                          line = dict(color = styling['color_model'], width = styling['linewidth']),
                           name = 'Modeled Confirmed',
                           opacity = styling['model_opacity'],
-                          hovertemplate = '%{y:.0f}'
+                          hovertemplate = styling['hovertemplate']
                         )
     trace_4s = go.Scatter(y = y_pred['R'],
                           x = y_pred.index,
                           mode = 'lines',
-                          line = dict(color = 'blue', width = styling['linewidth']),
+                          line = dict(color = styling['color_repro'], width = styling['linewidth']),
                           name = 'Reproduction number',
                           opacity = styling['model_opacity'],
-                          hovertemplate = '%{y:.3f}'                         
+                          hovertemplate = styling['hovertemplate_repro']                        
                         )
     fig.add_trace(trace_4a, row = 1, col = 2)
     fig.add_trace(trace_4b, row = 1, col = 2)
@@ -404,18 +408,18 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
     trace_5a = go.Scatter(y = train_data['CurrentInfections'],
                           x = y_pred.index,
                           mode = 'lines',
-                          line = dict(color = 'green', width = styling['linewidth']),
+                          line = dict(color = styling['color_actual'], width = styling['linewidth_actual']),
                           name = 'Actual current infections',
                           opacity = styling['actual_opacity'],
-                          hovertemplate = '%{y:.0f}'
+                          hovertemplate = styling['hovertemplate']
                         )
     trace_5b = go.Scatter(y = y_pred['CurrentInfections'],
                           x = y_pred.index,
                           mode = 'lines',
-                          line = dict(color = 'red', width = styling['linewidth']),
-                          name = 'Model current infections',
+                          line = dict(color = styling['color_model'], width = styling['linewidth']),
+                          name = 'Modeled current infections',
                           opacity = styling['model_opacity'],
-                          hovertemplate = '%{y:.0f}'
+                          hovertemplate = styling['hovertemplate']
                         )
     fig.add_trace(trace_5a, row = 4, col = 2)
     fig.add_trace(trace_5b, row = 4, col = 2)
@@ -441,26 +445,26 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
         trace_1c = go.Scatter(y = valid_data['ConfirmedCases'],
                           x = valid_data.index,
                           mode = 'lines',
-                          line = dict(color = 'green', width = styling['linewidth'], dash = 'dash'),
+                          line = dict(color = styling['color_actual'], width = styling['linewidth_actual'], dash = 'dash'),
                           name = 'Actual confirmed cases',
                           opacity = styling['actual_opacity'],
-                          hovertemplate = '%{y:.0f}'
+                          hovertemplate = styling['hovertemplate']
                         )
         trace_1d = go.Scatter(y = y_pred.loc[valid_data.index,'ConfirmedCases'],
                               x = valid_data.index,
                               mode = 'lines',
-                              line = dict(color = 'red', width = styling['linewidth'], dash = 'dash'),
+                              line = dict(color = styling['color_model'], width = styling['linewidth'], dash = 'dash'),
                               name = 'Modeled confirmed cases (validation)',
                               opacity = styling['model_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
         trace_1ds = go.Scatter(y = y_pred.loc[valid_data.index,'R'],
                               x = valid_data.index,
                               mode = 'lines',
-                              line = dict(color = 'blue', width = styling['linewidth']),
+                              line = dict(color = styling['color_repro'], width = styling['linewidth']),
                               name = 'Reproduction number',
                               opacity = styling['model_opacity'],
-                              hovertemplate = '%{y:.3f}'
+                              hovertemplate = styling['hovertemplate_repro']
                               
                             )
         fig.add_trace(trace_1c, row = 1, col = 1)
@@ -471,18 +475,18 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
         trace_2c = go.Scatter(y = valid_data['CurrentInfections'],
                               x = valid_data.index,
                               mode = 'lines',
-                              line = dict(color = 'green', width = styling['linewidth'], dash = 'dash'),
+                              line = dict(color = styling['color_actual'], width = styling['linewidth_actual'], dash = 'dash'),
                               name = 'Actual Current Infections',
                               opacity = styling['actual_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
         trace_2d = go.Scatter(y = y_pred.loc[valid_data.index,'CurrentInfections'],
                               x = valid_data.index,
                               mode = 'lines',
-                              line = dict(color = 'red', width = styling['linewidth'], dash = 'dash'),
+                              line = dict(color = styling['color_model'], width = styling['linewidth'], dash = 'dash'),
                               name = 'Modeled Current Infections(validation)',
                               opacity = styling['model_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
         fig.add_trace(trace_2c, row = 3, col = 1)
         fig.add_trace(trace_2d, row = 3, col = 1)
@@ -491,18 +495,18 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
         trace_3c = go.Scatter(y = valid_data['Removed'],
                               x = valid_data.index,
                               mode = 'lines',
-                              line = dict(color = 'green', width = styling['linewidth'], dash = 'dash'),
+                              line = dict(color = styling['color_actual'], width = styling['linewidth_actual'], dash = 'dash'),
                               name = 'Actual Removed',
                               opacity = styling['actual_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
         trace_3d = go.Scatter(y = y_pred.loc[valid_data.index,'Removed'],
                               x = valid_data.index,
                               mode = 'lines',
-                              line = dict(color = 'red', width = styling['linewidth'], dash = 'dash'),
+                              line = dict(color = styling['color_model'], width = styling['linewidth'], dash = 'dash'),
                               name = 'Modeled Removed(validation)',
                               opacity = styling['model_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
         fig.add_trace(trace_3c, row = 5, col = 1)
         fig.add_trace(trace_3d, row = 5, col = 1)
@@ -510,26 +514,26 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
         trace_4c = go.Scatter(y = valid_data['ConfirmedCases'],
                               x = valid_data.index,
                               mode = 'lines',
-                              line = dict(color = 'green', width = styling['linewidth'], dash = 'dash'),
+                              line = dict(color = styling['color_actual'], width = styling['linewidth_actual'], dash = 'dash'),
                               name = 'Actual confirmed',
                               opacity = styling['actual_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
         trace_4d = go.Scatter(y = y_pred.loc[valid_data.index,'ConfirmedCases'],
                               x = valid_data.index,
                               mode = 'lines',
-                              line = dict(color = 'red', width = styling['linewidth'], dash = 'dash'),
+                              line = dict(color = styling['color_model'], width = styling['linewidth'], dash = 'dash'),
                               name = 'Modeled Confirmed(validation)',
                               opacity = styling['model_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
         trace_4ds = go.Scatter(y = y_pred.loc[valid_data.index,'R'],
                               x = valid_data.index,
                               mode = 'lines',
-                              line = dict(color = 'blue', width = styling['linewidth'], dash = 'dash'),
+                              line = dict(color = styling['color_repro'], width = styling['linewidth'], dash = 'dash'),
                               name = 'Reproduction number',
                               opacity = styling['model_opacity'],
-                              hovertemplate = '%{y:.3f}'
+                              hovertemplate = styling['hovertemplate_repro']
                              
                             )
         fig.add_trace(trace_4c, row = 1, col = 2)
@@ -540,18 +544,18 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
         trace_5c = go.Scatter(y = valid_data['CurrentInfections'],
                               x = valid_data.index,
                               mode = 'lines',
-                              line = dict(color = 'green', width = styling['linewidth'], dash = 'dash'),
+                              line = dict(color = styling['color_actual'], width = styling['linewidth_actual'], dash = 'dash'),
                               name = 'Actual current infections',
                               opacity = styling['actual_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
         trace_5d = go.Scatter(y = y_pred.loc[valid_data.index,'CurrentInfections'],
                               x = valid_data.index,
                               mode = 'lines',
-                              line = dict(color = 'red', width = styling['linewidth'], dash = 'dash'),
+                              line = dict(color = styling['color_model'], width = styling['linewidth'], dash = 'dash'),
                               name = 'Model current infections(validation)',
                               opacity = styling['model_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
  
         fig.add_trace(trace_5c, row = 4, col = 2)
@@ -563,18 +567,18 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
             trace_1e = go.Scatter(y = y_pred.loc[test_index,'ConfirmedCases'],
                               x = test_index,
                               mode = 'lines',
-                              line = dict(color = 'red', width = styling['linewidth'], dash = 'dot'),
+                              line = dict(color = styling['color_model'], width = styling['linewidth'], dash = 'dot'),
                               name = 'Modeled confirmed cases (forecast)',
                               opacity = styling['model_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
             trace_1es = go.Scatter(y = y_pred.loc[test_index,'R'],
                               x = test_index,
                               mode = 'lines',
-                              line = dict(color = 'blue', width = styling['linewidth']),
+                              line = dict(color = styling['color_repro'], width = styling['linewidth']),
                               name = 'Reproduction number',
                               opacity = styling['model_opacity'],
-                              hovertemplate = '%{y:.3f}'
+                              hovertemplate = styling['hovertemplate_repro']
                              
                             )
             fig.add_trace(trace_1e, row = 1, col = 1)
@@ -583,20 +587,20 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
             trace_2e = go.Scatter(y = y_pred.loc[test_index,'CurrentInfections'],
                               x = test_index,
                               mode = 'lines',
-                              line = dict(color = 'red', width = styling['linewidth'], dash = 'dot'),
+                              line = dict(color = styling['color_model'], width = styling['linewidth'], dash = 'dot'),
                               name = 'Modeled Current Infections (forecast)',
                               opacity = styling['model_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
             fig.add_trace(trace_2e, row = 3, col = 1)
            
             trace_3e = go.Scatter(y = y_pred.loc[test_index,'Removed'],
                               x = test_index,
                               mode = 'lines',
-                              line = dict(color = 'red', width = styling['linewidth'], dash = 'dot'),
-                              name = 'Modeled Removed(Dead + Recovered) (forecast)',
+                              line = dict(color = styling['color_model'], width = styling['linewidth'], dash = 'dot'),
+                              name = 'Modeled Removed (forecast)',
                               opacity = styling['model_opacity'],
-                              hovertemplate = '%{y:.0f}'
+                              hovertemplate = styling['hovertemplate']
                             )
             fig.add_trace(trace_3e, row = 5, col = 1)
     
@@ -611,7 +615,40 @@ def plot_model_results_plotly(y_pred, train_data, state, valid_data=None, res = 
     fig.update_yaxes(fixedrange=True, row = 5, col = 1)
     fig.update_yaxes(fixedrange=True, row = 1, col = 2)
     fig.update_yaxes(fixedrange=True, row = 4, col = 2)    """
-       
+    
+    fig.update_layout({
+                    #'font':{'size':24},
+                       #'width':2400,
+                       'height': 900
+                       },
+                     dragmode = False,
+                     hovermode = "x",
+                     hoverlabel = {'namelength':50},
+                     yaxis2 = dict(
+                                    title="Reproduction number",
+                                    titlefont=dict(
+                                        color= styling['color_repro']
+                                    ),
+                                    tickfont=dict(
+                                        color= styling['color_repro']
+                                    ),
+                                    anchor="x",
+                                    overlaying="y",
+                                    side="right"
+                                ) ,
+                    yaxis4=dict(
+                                    title="Reproduction number",
+                                    titlefont=dict(
+                                        color= styling['color_repro']
+                                    ),
+                                    tickfont=dict(
+                                        color= styling['color_repro'],
+                                    ),
+                                    anchor="free",
+                                    overlaying="y3",
+                                    side="right",
+                                    position=0.94
+                                ) )
     
     fig.show()
    
@@ -640,9 +677,10 @@ def fit_model_public(area_name
         return use_last_value(train_data, valid_data, test_data)
    
     print("for res_decay")
-    res_decay = minimize(eval_model_decay, initial_guess[:-1], bounds=bounds[:-1],
+    res_decay = basinhopping(eval_model_decay, initial_guess[:-1],
+                         minimizer_kwargs = dict(    bounds=bounds[:-1],
                          args=(train_data, population, False),
-                         method='L-BFGS-B')
+                         method='L-BFGS-B'))
 #    print("for res_calc")
 #    res_calc = minimize(eval_model_calc, initial_guess[1:-3], bounds=bounds[1:-3],
 #                         args=(train_data, population, False),
@@ -690,11 +728,17 @@ def fit_model_public(area_name
     forecast_ids = test_data['ForecastId']
     submission.loc[forecast_ids, ['ConfirmedCases', 'Removed']] = y_pred_test[['ConfirmedCases', 'Removed']].values.copy()
     return fig
- 
+"""initial_guess=[random.uniform(2, 5),
+                                    random.uniform(0.5, 10),
+                                    random.uniform(2, 20),
+                                    random.uniform(1, 5),
+                                    random.uniform(1, 100),
+                                    random.uniform(0, 1)],""" 
+    
 def fit_model_private(area_name,
-                     initial_guess=[1.5, 2.9, 5.2, 2, 50, 0.5], #R_0, t_inc, t_inf, k, L , pop_frac
+                      initial_guess=[1.5, 2.9, 5.2, 2, 50, 0.5], #R_0, t_inc, t_inf, k, L , pop_frac
                       bounds=((2, 5), # R bounds
-                             (0.5, 10), (2, 20),
+                              (0.5, 10), (2, 20),
                               (1, 5), (1, 100), (0, 1)), # fraction time param bounds
                      make_plot=True, extra_days = 0,
                      valid_days= 10, forecast_days=30):
@@ -719,7 +763,13 @@ def fit_model_private(area_name,
         return use_last_value(train_data, test_data)
    
     print("for res_decay")
-    res_decay = minimize(eval_model_decay, initial_guess[:-1], bounds=bounds[:-1],
+    """
+    res_decay = basinhopping(eval_model_decay, initial_guess[:-1],
+                         minimizer_kwargs = dict(bounds=bounds[:-1],
+                         args=(train_data, population, False),
+                         method='L-BFGS-B'))"""
+    res_decay = minimize(eval_model_decay, initial_guess[:-1],
+                         bounds=bounds[:-1],
                          args=(train_data, population, False),
                          method='L-BFGS-B')
 
@@ -790,7 +840,7 @@ app.layout = html.Div([
                                                  
                                             - __*R(t)* is assumed to decay according to the following model:  *R(t)* = *R_0*/(1+(t/L)^k)__
                                             - The <span style = "color:green">GREEN </span> lines denote the actual numbers, the RED lines show the predicted
-                                            - The BLUE Line represents the Reproduction number
+                                            - The CYAN Line represents the Reproduction number
                                             
                                              ** Hover on the graphs for more info **
                                              
@@ -811,6 +861,9 @@ app.layout = html.Div([
                                 placeholder='Enter the number of days you want to forecast...',
                                 type='number',
                                 value=10,
+                                min = 0,
+                                max = 500,
+                                step = 1,
                                 #style = {'fontSize': 30, 'width':'30%'},
                                 debounce = True
                             )] ),
@@ -835,39 +888,7 @@ def input_triggers_spinner(value):
 def output(state, forecast_days):
     fig = fit_model_private(str(state), extra_days = 500, forecast_days= forecast_days)
     #fig.update_annotations({'font':{'size': 24}})
-    fig.update_layout({
-                    #'font':{'size':24},
-                       #'width':2400,
-                       'height': 900
-                       },
-                     dragmode = False,
-                     hovermode = "x",
-                     hoverlabel = {'namelength':50},
-                     yaxis2 = dict(
-                                    title="Reproduction number",
-                                    titlefont=dict(
-                                        color="blue"
-                                    ),
-                                    tickfont=dict(
-                                        color="blue"
-                                    ),
-                                    anchor="x",
-                                    overlaying="y",
-                                    side="right"
-                                ) ,
-                    yaxis4=dict(
-                                    title="Reproduction number",
-                                    titlefont=dict(
-                                        color="blue"
-                                    ),
-                                    tickfont=dict(
-                                        color="blue"
-                                    ),
-                                    anchor="free",
-                                    overlaying="y3",
-                                    side="right",
-                                    position=0.94
-                                ) )
+    
     return fig
 if __name__=='__main__':
     app.run_server()           
